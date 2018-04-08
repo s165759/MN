@@ -3,5 +3,3 @@
 //
 
 #include "Matrix.h"
-
-Matrix::Matrix(const std::initializer_list<int> &dim) : AbstractMatrix(dim) {}

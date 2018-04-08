@@ -5,139 +5,82 @@
 #ifndef MATRIX_MATRIX_H
 #define MATRIX_MATRIX_H
 
-#include <vector>
+#include <array>
+#include <assert.h>
+#include <iostream>
 
-template <typename T>
-class AbstractMatrix {
+namespace Matrix {
 
-protected:
-    std::vector<int> dimensions;
+    template <typename value_t, size_t N, size_t M>
+    class DenseMatrix{
 
-public:
-    virtual AbstractMatrix(std::initializer_list<int> dim) : dimensions(dim){};
-    virtual ~AbstractMatrix() = default;
+        value_t values[N * M];
 
-public:
-    virtual AbstractMatrix& operator*= (AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix& operator+= (AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix operator+  (AbstractMatrix lhs, AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix operator* (AbstractMatrix lhs, AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix& operator-= (AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix operator- (AbstractMatrix lhs, AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix& operator/= (AbstractMatrix& rhs) = 0;
-    virtual AbstractMatrix operator/ (AbstractMatrix lhs, AbstractMatrix& rhs) = 0;
+    public:
 
-    template <typename U>
-    virtual AbstractMatrix& operator*= (U u) = 0;
+        static const size_t rows = N;
+        static const size_t cols = M;
 
-    template <typename U>
-    virtual AbstractMatrix operator* (AbstractMatrix lhs, U& rhs) = 0;
+        DenseMatrix(
+                std::initializer_list<std::initializer_list<value_t>> init
+        ) {
+            int a = 0;
 
-    template <typename U>
-    virtual AbstractMatrix& operator/= (U& rhs) = 0;
-
-    template <typename U>
-    virtual AbstractMatrix operator/ (AbstractMatrix lhs, U& rhs) = 0;
-
-
-    virtual T &operator()(std::initializer_list<int> l) = 0;
-};
-
-template <typename T>
-class Matrix : public AbstractMatrix<T>{
-
-    T *values;
-
-public:
-
-    Matrix::Matrix(const std::initializer_list<int> &dim) : AbstractMatrix(dim) {
-        int no_elements = 0;
-
-        for (auto& e : dim) {
-            no_elements += e;
+            for (auto i = init.begin(); i != init.end() ; ++i) {
+                for (auto j = i->begin(); j != i->end() ; ++j) {
+                    values[a] = *j;
+                    a++;
+                }
+            }
         }
 
-        values = new T[no_elements];
-    }
+        DenseMatrix() = default;
 
-    AbstractMatrix<T> &operator*=(AbstractMatrix &rhs) override {
-
-    }
-
-    AbstractMatrix<T> &operator+=(AbstractMatrix &rhs) override {
-        return <#initializer#>;
-    }
-
-    AbstractMatrix<T> operator+(AbstractMatrix lhs, AbstractMatrix &rhs) override {
-        return nullptr;
-    }
-
-    AbstractMatrix<T> operator*(AbstractMatrix lhs, AbstractMatrix &rhs) override {
-        return nullptr;
-    }
-
-    AbstractMatrix<T> &operator-=(AbstractMatrix &rhs) override {
-        return <#initializer#>;
-    }
-
-    AbstractMatrix<T> operator-(AbstractMatrix lhs, AbstractMatrix &rhs) override {
-        return nullptr;
-    }
-
-    AbstractMatrix<T> &operator/=(AbstractMatrix &rhs) override {
-        return <#initializer#>;
-    }
-
-    AbstractMatrix<T> operator/(AbstractMatrix lhs, AbstractMatrix &rhs) override {
-        return nullptr;
-    }
-
-    template <typename U>
-    AbstractMatrix<T> &operator*=(U u) override {
-
-        for (int i = 0; i < sizeof(values) / sizeof(T); ++i) {
-            values[i] *= u;
+        inline value_t& operator()(size_t n, size_t m){
+            return values[n * cols + m];
         }
 
-        return *this;
-    }
+        template<
+                class matrix_t,
+                class matrix_out_t = DenseMatrix<value_t, rows, matrix_t::cols>
+        >
+        matrix_out_t&& operator*(matrix_t& multi) {
+            static_assert(cols == matrix_t::rows, "Matrix dimensions mismatch");
 
-    template <typename U>
-    AbstractMatrix<T> operator*(AbstractMatrix lhs, U &rhs) override {
-        return lhs *= rhs;
-    }
+            matrix_out_t a;
 
-    template <typename U>
-    AbstractMatrix<T> &operator/=(U &rhs) override {
-        for (int i = 0; i < sizeof(values) / sizeof(T); ++i) {
-            values[i] /= rhs;
+            for (size_t i = 0; i < rows; ++i) {
+                for (size_t j = 0; j < matrix_t::cols; ++j) {
+                    a(i, j) = 0;
+                    for (size_t k = 0; k < cols; ++k) {
+                        a(i, j) += (*this) (i, k) * multi(k, j);
+                    }
+                }
+            }
+
+            return std::move(a);
         }
 
-        return *this;
-    }
+//        template<
+//                class matrix_t,
+//                class matrix_out_t = DenseMatrix<value_t, rows, matrix_t::cols>
+//        >
 
-    template <typename U>
-    AbstractMatrix<T> operator/(AbstractMatrix lhs, U &rhs) override {
-        return lhs /= rhs;
-    }
+        template <class matrix_t>
+        friend std::ostream& operator<< (std::ostream& stream, matrix_t& m){
 
-    T &operator()(std::initializer_list<int> l) override {
-        static_assert(l.size() == dimensions.size());
+            stream << "dimensions: (" << matrix_t::rows << " x " << matrix_t::cols << ')' << std::endl;
 
-        int indeks = 0;
-        auto dimIter = dimensions.end();
+            for (size_t i = 0; i < matrix_t::rows; ++i) {
+                for (size_t j = 0; j < matrix_t::cols; ++j) {
+                    stream << m(i, j) << ' ';
+                }
+                stream << '\n';
+            }
 
-        for(auto iter = l.end(); iter != l.begin(); iter--){
-            indeks *= *dimIter;
-            indeks += *iter;
-            dimIter--;
+            return stream;
         }
+    };
 
-        return values[indeks];
-
-    }
-
-};
-
-
+}
 #endif //MATRIX_MATRIX_H
